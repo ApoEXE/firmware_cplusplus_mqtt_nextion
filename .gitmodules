@@ -1,0 +1,3 @@
+[submodule "Nextion_driver"]
+	path = Nextion_driver
+	url = https://github.com/ApoEXE/Nextion_driver

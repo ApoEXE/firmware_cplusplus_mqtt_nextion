@@ -13,6 +13,9 @@
 #define QOS 1
 #define TIMEOUT 10000L
 
+#define MAYOR 1
+#define MINOR 0
+#define PATCH 1
 // Nextion
 #include "Nextion_driver/nextion_driver.h"
 
@@ -44,7 +47,7 @@ void onConnect(void *context, MQTTAsync_successData *response);
 
 int main()
 {
-
+    printf("Nextion display MQTT  %d.%d.%d\n", MAYOR,MINOR,PATCH);
     // Nextion thread and call back
     std::thread t(std::bind(&Nextion_driver::infiniteThread, &display, callbackFunction));
     // MQTT
@@ -167,6 +170,19 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *me
         long mapped = display.map((atoi((char *)message->payload)), 0, 50, 0, 255);
         display.write_waveform(10, 0, (uint8_t)mapped);
     }
+    if (strcmp("Tanque1/canal/turbidity/sensor1", topicName) == 0)
+    {
+        display.write_value("x1.val=", (atof((char *)message->payload)) * 10);
+    }
+    if (strcmp("Tanque1/canal/tds/sensor1", topicName) == 0)
+    {
+        display.write_value("x2.val=", (atof((char *)message->payload)) * 10);
+    }
+    if (strcmp("Tanque1/canal/level/sensor1", topicName) == 0)
+    {
+        display.write_value("x7.val=", (atof((char *)message->payload)) * 10);
+    }
+
     MQTTAsync_freeMessage(&message);
     MQTTAsync_free(topicName);
     return 1;

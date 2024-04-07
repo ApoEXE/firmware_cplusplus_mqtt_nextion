@@ -10,6 +10,10 @@
 #include <stdlib.h>
 #include "MQTTAsync.h"
 #include <unistd.h>
+#include <sys/socket.h>
+#include <assert.h>
+#include <arpa/inet.h>
+#define MAX_IP_CHAR 30
 #define QOS 1
 #define TIMEOUT 10000L
 
@@ -26,6 +30,37 @@ void callbackFunction(char *msg)
     std::cout << "MSG: " << msg << std::endl;
 }
 
+// GET IP
+
+void getIP(char* buffer, size_t buflen)
+{
+    assert(buflen >= 16);
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    assert(sock != -1);
+
+    const char* kGoogleDnsIp = "8.8.8.8";
+    uint16_t kDnsPort = 53;
+    struct sockaddr_in serv;
+    memset(&serv, 0, sizeof(serv));
+    serv.sin_family = AF_INET;
+    serv.sin_addr.s_addr = inet_addr(kGoogleDnsIp);
+    serv.sin_port = htons(kDnsPort);
+
+    int err = connect(sock, (const sockaddr*) &serv, sizeof(serv));
+    assert(err != -1);
+
+    sockaddr_in name;
+    socklen_t namelen = sizeof(name);
+    err = getsockname(sock, (sockaddr*) &name, &namelen);
+    assert(err != -1);
+
+    const char* p = inet_ntop(AF_INET, &name.sin_addr, buffer, buflen);
+    assert(p);
+
+    close(sock);
+}
+
 // MQTT
 const char SERVER_ADDRESS[] = {"mqtt://localhost:1883"};
 const char CLIENT_ID[] = {"paho_cpp_async_consume"};
@@ -33,7 +68,7 @@ const char TOPIC[] = {"Tanque1/canal/#"};
 int disc_finished = 0;
 int subscribed = 0;
 int finished = 0;
-
+char ip[MAX_IP_CHAR];
 void onConnect(void *context, MQTTAsync_successData *response);
 void onConnectFailure(void *context, MQTTAsync_failureData *response);
 void connlost(void *context, char *cause);
@@ -47,7 +82,12 @@ void onConnect(void *context, MQTTAsync_successData *response);
 
 int main()
 {
-    printf("Nextion display MQTT  %d.%d.%d\n", MAYOR,MINOR,PATCH);
+    printf("Nextion display MQTT  %d.%d.%d\n", MAYOR, MINOR, PATCH);
+    
+    getIP(ip,MAX_IP_CHAR);
+    printf("%s\n", ip);
+    std::string str(ip);
+    display.write_text("t0.txt=", str);
     // Nextion thread and call back
     std::thread t(std::bind(&Nextion_driver::infiniteThread, &display, callbackFunction));
     // MQTT
@@ -182,6 +222,7 @@ int msgarrvd(void *context, char *topicName, int topicLen, MQTTAsync_message *me
     {
         display.write_value("x7.val=", (atof((char *)message->payload)) * 10);
     }
+
 
     MQTTAsync_freeMessage(&message);
     MQTTAsync_free(topicName);
